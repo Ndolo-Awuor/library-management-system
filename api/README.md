@@ -1,98 +1,118 @@
-<p align="center">
-  <a href="http://nestjs.com/" target="blank"><img src="https://nestjs.com/img/logo-small.svg" width="120" alt="Nest Logo" /></a>
-</p>
+# Library Management System — API
 
-[circleci-image]: https://img.shields.io/circleci/build/github/nestjs/nest/master?token=abc123def456
-[circleci-url]: https://circleci.com/gh/nestjs/nest
+The NestJS backend for the Week 1 library management assignment. This component defines the PostgreSQL schema, seeds sample genres and books, and provides Prisma integration plus a starter greeting endpoint.
 
-  <p align="center">A progressive <a href="http://nodejs.org" target="_blank">Node.js</a> framework for building efficient and scalable server-side applications.</p>
-    <p align="center">
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/v/@nestjs/core.svg" alt="NPM Version" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/l/@nestjs/core.svg" alt="Package License" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/dm/@nestjs/common.svg" alt="NPM Downloads" /></a>
-<a href="https://circleci.com/gh/nestjs/nest" target="_blank"><img src="https://img.shields.io/circleci/build/github/nestjs/nest/master" alt="CircleCI" /></a>
-<a href="https://discord.gg/G7Qnnhy" target="_blank"><img src="https://img.shields.io/badge/discord-online-brightgreen.svg" alt="Discord"/></a>
-<a href="https://opencollective.com/nest#backer" target="_blank"><img src="https://opencollective.com/nest/backers/badge.svg" alt="Backers on Open Collective" /></a>
-<a href="https://opencollective.com/nest#sponsor" target="_blank"><img src="https://opencollective.com/nest/sponsors/badge.svg" alt="Sponsors on Open Collective" /></a>
-  <a href="https://paypal.me/kamilmysliwiec" target="_blank"><img src="https://img.shields.io/badge/Donate-PayPal-ff3f59.svg" alt="Donate us"/></a>
-    <a href="https://opencollective.com/nest#sponsor"  target="_blank"><img src="https://img.shields.io/badge/Support%20us-Open%20Collective-41B883.svg" alt="Support us"></a>
-  <a href="https://twitter.com/nestframework" target="_blank"><img src="https://img.shields.io/twitter/follow/nestframework.svg?style=social&label=Follow" alt="Follow us on Twitter"></a>
-</p>
-  <!--[![Backers on Open Collective](https://opencollective.com/nest/backers/badge.svg)](https://opencollective.com/nest#backer)
-  [![Sponsors on Open Collective](https://opencollective.com/nest/sponsors/badge.svg)](https://opencollective.com/nest#sponsor)-->
+For the assignment overview, model descriptions, schema decisions, and full database setup, see the [main README](../README.md).
 
-## Description
+## Stack
 
-[Nest](https://github.com/nestjs/nest) framework TypeScript starter repository.
+NestJS 11 · TypeScript · PostgreSQL · Prisma 7 · PostgreSQL driver adapter · Jest · ESLint
 
-## Project setup
+The Prisma generator uses CommonJS output in `generated/prisma/`. Generated files are separate from the handwritten service in `src/prisma/`.
+
+## Local setup
+
+Use Node.js 24 and npm, and configure a reachable PostgreSQL database. The following commands start **inside `api`**:
 
 ```bash
-$ npm install
+npm ci
 ```
 
-## Compile and run the project
+For a fresh setup only:
 
 ```bash
-# development
-$ npm run start
-
-# watch mode
-$ npm run start:dev
-
-# production mode
-$ npm run start:prod
+cp .env.example .env
 ```
 
-## Run tests
+Do not overwrite an existing environment file. Edit the private `.env` to set `DATABASE_URL` to your PostgreSQL connection string. URL-encode credentials when necessary and use your hosted provider's required SSL settings. Never commit credentials. For database-creation instructions, see [Getting started](../README.md#getting-started).
 
 ```bash
-# unit tests
-$ npm run test
-
-# e2e tests
-$ npm run test:e2e
-
-# test coverage
-$ npm run test:cov
+npx prisma generate --config prisma7.config.ts
+npx prisma migrate deploy --config prisma7.config.ts
+npx prisma db seed --config prisma7.config.ts
+npm run start:dev
 ```
 
-## Deployment
+Confirm the database target before running migrations or the seed. The seed upserts four genres and 15 books without overwriting existing matching records; it does not create users.
 
-When you're ready to deploy your NestJS application to production, there are some key steps you can take to ensure it runs as efficiently as possible. Check out the [deployment documentation](https://docs.nestjs.com/deployment) for more information.
-
-If you are looking for a cloud-based platform to deploy your NestJS application, check out [Mau](https://mau.nestjs.com), our official platform for deploying NestJS applications on AWS. Mau makes deployment straightforward and fast, requiring just a few simple steps:
+The API defaults to `http://localhost:3000`. In Git Bash, set another port with:
 
 ```bash
-$ npm install -g @nestjs/mau
-$ mau deploy
+PORT=3001 npm run start:dev
 ```
 
-With Mau, you can deploy your application in just a few clicks, allowing you to focus on building features rather than managing infrastructure.
+`PrismaService` connects during application initialization, so database connectivity is required for startup.
 
-## Resources
+## Endpoint
 
-Check out a few resources that may come in handy when working with NestJS:
+| Method | Path | Response |
+| --- | --- | --- |
+| GET | `/` | `Hello World!` |
 
-- Visit the [NestJS Documentation](https://docs.nestjs.com) to learn more about the framework.
-- For questions and support, please visit our [Discord channel](https://discord.gg/G7Qnnhy).
-- To dive deeper and get more hands-on experience, check out our official video [courses](https://courses.nestjs.com/).
-- Deploy your application to AWS with the help of [NestJS Mau](https://mau.nestjs.com) in just a few clicks.
-- Visualize your application graph and interact with the NestJS application in real-time using [NestJS Devtools](https://devtools.nestjs.com).
-- Need help with your project (part-time to full-time)? Check out our official [enterprise support](https://enterprise.nestjs.com).
-- To stay in the loop and get updates, follow us on [X](https://x.com/nestframework) and [LinkedIn](https://linkedin.com/company/nestjs).
-- Looking for a job, or have a job to offer? Check out our official [Jobs board](https://jobs.nestjs.com).
+With the API running:
 
-## Support
+```bash
+curl http://localhost:3000/
+```
 
-Nest is an MIT-licensed open source project. It can grow thanks to the sponsors and support by the amazing backers. If you'd like to join them, please [read more here](https://docs.nestjs.com/support).
+Week 1 does not expose book, genre, user, or circulation endpoints. The role enum is a database constraint, not an HTTP authorization mechanism.
 
-## Stay in touch
+## Database tooling
 
-- Author - [Kamil Myśliwiec](https://twitter.com/kammysliwiec)
-- Website - [https://nestjs.com](https://nestjs.com/)
-- Twitter - [@nestframework](https://twitter.com/nestframework)
+Run from this directory:
 
-## License
+| Command | Purpose |
+| --- | --- |
+| `npx prisma generate --config prisma7.config.ts` | Generate the client from the schema |
+| `npx prisma migrate deploy --config prisma7.config.ts` | Apply committed migrations to the configured database |
+| `npx prisma db seed --config prisma7.config.ts` | Upsert the sample genres and books |
+| `npx prisma validate --config prisma7.config.ts` | Validate the schema without applying migrations |
+| `npx prisma studio --config prisma7.config.ts` | Open the database browser |
 
-Nest is [MIT licensed](https://github.com/nestjs/nest/blob/master/LICENSE).
+Configuration is in [prisma7.config.ts](prisma7.config.ts); models are in [schema.prisma](prisma/schema.prisma). See the [root README's sample-data notes](../README.md#sample-data) for seed behavior and placeholder ISBNs.
+
+## Development commands
+
+| Command | Purpose |
+| --- | --- |
+| `npm run start` | Compile and start the application |
+| `npm run start:dev` | Start with watch mode |
+| `npm run build` | Compile to `dist/` |
+| `npm run start:prod` | Run the compiled application after building; still requires database configuration |
+| `npm test -- --runInBand` | Run unit tests sequentially |
+| `npm run test:cov -- --runInBand` | Run unit tests with coverage collection |
+| `npm run test:e2e -- --runInBand` | Run the root endpoint test with application initialization and a reachable database |
+| `npx eslint "{src,apps,libs,test}/**/*.ts"` | Check lint rules without modifying source |
+| `npm run lint` | Run ESLint with automatic fixes; modifies source when applicable |
+| `npm run format` | Rewrite TypeScript formatting in source and tests |
+
+The tests currently cover the starter greeting, not library CRUD or database business rules. A build is not a deployment or a substitute for testing database connectivity.
+
+## Source structure
+
+```text
+api/
+├── prisma7.config.ts
+├── prisma/
+│   ├── schema.prisma           # User, Genre, Book, Role
+│   ├── migrations/             # Initial schema migration
+│   └── seed.ts                 # Repeatable genre/book sample data
+├── src/
+│   ├── main.ts                 # Application bootstrap and port
+│   ├── app.module.ts           # Imports PrismaModule
+│   ├── app.controller.ts       # GET / greeting route
+│   ├── app.controller.spec.ts  # Controller unit test
+│   ├── app.service.ts          # Greeting response
+│   └── prisma/
+│       ├── prisma.module.ts    # Provides and exports PrismaService
+│       └── prisma.service.ts   # Client, adapter, and initialization connection
+└── test/
+    ├── app.e2e-spec.ts         # Root endpoint end-to-end test
+    └── jest-e2e.json
+```
+
+## Ownership and license
+
+Project owner: [@Ndolo-Awuor](https://github.com/Ndolo-Awuor).
+
+The package declares `UNLICENSED`. See the [project license note](../README.md#author-and-license); framework licensing does not grant an assignment-level license.
