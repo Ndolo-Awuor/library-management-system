@@ -1,18 +1,18 @@
 # Library Management System — API
 
-The NestJS backend for the Week 1 library management assignment. This component defines the PostgreSQL schema, seeds sample genres and books, and provides Prisma integration plus a starter greeting endpoint.
+The NestJS backend for the Week 2 library management assignment. It provides book and genre endpoints, validation, registration and login, JWT and role guards, and an authenticated profile.
 
 For the assignment overview, model descriptions, schema decisions, and full database setup, see the [main README](../README.md).
 
 ## Stack
 
-NestJS 11 · TypeScript · PostgreSQL · Prisma 7 · PostgreSQL driver adapter · Jest · ESLint
+NestJS 11 · TypeScript · PostgreSQL · Prisma 7 · Passport JWT · bcrypt · class-validator · Jest
 
 The Prisma generator uses CommonJS output in `generated/prisma/`. Generated files are separate from the handwritten service in `src/prisma/`.
 
 ## Local setup
 
-Use Node.js 24 and npm, and configure a reachable PostgreSQL database. The following commands start **inside `api`**:
+Use Node.js 24 and npm, and configure a reachable PostgreSQL development database. The following commands start **inside `api`**:
 
 ```bash
 npm ci
@@ -24,7 +24,7 @@ For a fresh setup only:
 cp .env.example .env
 ```
 
-Do not overwrite an existing environment file. Edit the private `.env` to set `DATABASE_URL` to your PostgreSQL connection string. URL-encode credentials when necessary and use your hosted provider's required SSL settings. Never commit credentials. For database-creation instructions, see [Getting started](../README.md#getting-started).
+Do not overwrite an existing environment file. Set the private `DATABASE_URL` and a random `JWT_SECRET` of at least 32 characters in `.env`. For database and secret setup, see [Getting started](../README.md#getting-started). Never commit credentials.
 
 ```bash
 npx prisma generate --config prisma7.config.ts
@@ -33,29 +33,23 @@ npx prisma db seed --config prisma7.config.ts
 npm run start:dev
 ```
 
-Confirm the database target before running migrations or the seed. The seed upserts four genres and 15 books without overwriting existing matching records; it does not create users.
-
-The API defaults to `http://localhost:3000`. In Git Bash, set another port with:
-
-```bash
-PORT=3001 npm run start:dev
-```
-
-`PrismaService` connects during application initialization, so database connectivity is required for startup.
+Confirm the database target before running migrations or the seed. The seed upserts four genres and 15 books without overwriting existing matching records; it does not create users. The API defaults to `http://localhost:3000` and connects to PostgreSQL during startup.
 
 ## Endpoint
 
-| Method | Path | Response |
+| Method | Path | Access and purpose |
 | --- | --- | --- |
-| GET | `/` | `Hello World!` |
+| GET | `/` | Public greeting |
+| GET | `/books`, `/books/:id` | Public book list and individual book |
+| POST | `/books` | Librarian creates a book |
+| PATCH, DELETE | `/books/:id` | Librarian updates or deletes a book |
+| GET | `/genres`, `/genres/:id` | Public genre list and individual genre |
+| POST | `/genres` | Librarian creates a genre |
+| PATCH, DELETE | `/genres/:id` | Librarian updates or deletes a genre |
+| POST | `/auth/register`, `/auth/login` | Register a patron or log in |
+| GET | `/auth/me`, `/users/profile` | Authenticated user's safe identity |
 
-With the API running:
-
-```bash
-curl http://localhost:3000/
-```
-
-Week 1 does not expose book, genre, user, or circulation endpoints. The role enum is a database constraint, not an HTTP authorization mechanism.
+`GET /books` accepts `genreId`, `search`, `page`, and `limit`. Protected routes require `Authorization: Bearer <token>`; book and genre changes additionally require `LIBRARIAN`. Login is limited to five requests per minute per tracked client. The [Postman collection](../docs/postman_collection.json) contains request examples.
 
 ## Database tooling
 
@@ -65,50 +59,43 @@ Run from this directory:
 | --- | --- |
 | `npx prisma generate --config prisma7.config.ts` | Generate the client from the schema |
 | `npx prisma migrate deploy --config prisma7.config.ts` | Apply committed migrations to the configured database |
-| `npx prisma db seed --config prisma7.config.ts` | Upsert the sample genres and books |
+| `npx prisma db seed --config prisma7.config.ts` | Upsert sample genres and books |
 | `npx prisma validate --config prisma7.config.ts` | Validate the schema without applying migrations |
 | `npx prisma studio --config prisma7.config.ts` | Open the database browser |
 
-Configuration is in [prisma7.config.ts](prisma7.config.ts); models are in [schema.prisma](prisma/schema.prisma). See the [root README's sample-data notes](../README.md#sample-data) for seed behavior and placeholder ISBNs.
+Configuration is in [prisma7.config.ts](prisma7.config.ts); models are in [schema.prisma](prisma/schema.prisma). See the [root README](../README.md#sample-data) for seed behavior and local librarian setup.
 
 ## Development commands
 
 | Command | Purpose |
 | --- | --- |
-| `npm run start` | Compile and start the application |
 | `npm run start:dev` | Start with watch mode |
-| `npm run build` | Compile to `dist/` |
-| `npm run start:prod` | Run the compiled application after building; still requires database configuration |
+| `npm run build` | Compile the application |
 | `npm test -- --runInBand` | Run unit tests sequentially |
-| `npm run test:cov -- --runInBand` | Run unit tests with coverage collection |
-| `npm run test:e2e -- --runInBand` | Run the root endpoint test with application initialization and a reachable database |
+| `npm run test:e2e -- --runInBand` | Run the root endpoint test with a reachable database |
 | `npx eslint "{src,apps,libs,test}/**/*.ts"` | Check lint rules without modifying source |
-| `npm run lint` | Run ESLint with automatic fixes; modifies source when applicable |
+| `npm run lint` | Run ESLint with automatic fixes |
 | `npm run format` | Rewrite TypeScript formatting in source and tests |
 
-The tests currently cover the starter greeting, not library CRUD or database business rules. A build is not a deployment or a substitute for testing database connectivity.
+The existing automated unit test covers the starter greeting, not complete catalog and authentication workflows. See [Build and tests](../README.md#build-and-tests) for the checks performed.
 
 ## Source structure
 
 ```text
 api/
 ├── prisma7.config.ts
-├── prisma/
-│   ├── schema.prisma           # User, Genre, Book, Role
-│   ├── migrations/             # Initial schema migration
-│   └── seed.ts                 # Repeatable genre/book sample data
+├── prisma/                   # Schema, migration and seed
+├── scripts/                  # Local librarian creation
 ├── src/
-│   ├── main.ts                 # Application bootstrap and port
-│   ├── app.module.ts           # Imports PrismaModule
-│   ├── app.controller.ts       # GET / greeting route
-│   ├── app.controller.spec.ts  # Controller unit test
-│   ├── app.service.ts          # Greeting response
-│   └── prisma/
-│       ├── prisma.module.ts    # Provides and exports PrismaService
-│       └── prisma.service.ts   # Client, adapter, and initialization connection
-└── test/
-    ├── app.e2e-spec.ts         # Root endpoint end-to-end test
-    └── jest-e2e.json
+│   ├── main.ts               # Startup, validation and CORS
+│   ├── app.module.ts         # Registers feature modules
+│   ├── auth/                 # Authentication and role guards
+│   ├── books/                # Book routes, service and DTOs
+│   ├── common/               # Shared exception handling
+│   ├── genres/               # Genre routes, service and DTOs
+│   ├── prisma/               # Prisma module and service
+│   └── users/                # Authenticated profile route
+└── test/                     # Root endpoint end-to-end test
 ```
 
 ## Ownership and license
