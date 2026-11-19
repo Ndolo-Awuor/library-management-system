@@ -1,34 +1,34 @@
-# Library Management System — Week 1
+# Library Management System — Week 2
 
-A NestJS and PostgreSQL foundation for a library application, with a relational Prisma schema, an initial migration, and repeatable sample data.
+A NestJS and PostgreSQL backend for a library application, with a Prisma database schema, catalog endpoints, and token-based authentication.
 
-This Week 1 assignment focuses on database modeling and connecting Prisma to NestJS. It defines users, genres, and books; later application features are outside this submission's current scope.
+This Week 2 assignment builds on the Week 1 database foundation. It adds book and genre management, validation, search and pagination, registration and login, role-based access, and the optional profile and login rate-limit features.
 
 ## Contents
 
-- [Week 1 deliverables](#week-1-deliverables)
+- [Week 2 deliverables](#week-2-deliverables)
 - [Tech stack](#tech-stack)
 - [Architecture](#architecture)
 - [Database models](#database-models)
 - [Schema decisions](#schema-decisions)
 - [Getting started](#getting-started)
 - [Sample data](#sample-data)
-- [Available endpoint](#available-endpoint)
+- [Available endpoints](#available-endpoints)
 - [Build and tests](#build-and-tests)
 - [Project structure](#project-structure)
 - [Troubleshooting](#troubleshooting)
 - [Current scope](#current-scope)
 - [Author and license](#author-and-license)
 
-## Week 1 deliverables
+## Week 2 deliverables
 
-- **Relational schema:** `User`, `Genre`, and `Book` models with identifiers, required fields, defaults, and uniqueness constraints.
-- **Role enum:** `PATRON` and `LIBRARIAN` values, with `PATRON` as the default.
-- **Genre relationship:** Each book belongs to one genre; a genre can contain many books.
-- **Initial migration:** A committed SQL migration for creating the PostgreSQL schema.
-- **Repeatable seed:** Four genres and 15 sample books, inserted with upserts.
-- **NestJS integration:** A `PrismaService` supplied through `PrismaModule` and connected during module initialization.
-- **Starter endpoint:** `GET /` returns `Hello World!`.
+- **Catalog CRUD:** Create, list, retrieve, update, and delete books and genres. Catalog changes require a librarian account.
+- **Catalog queries:** Filter books by genre, search by title or author, and use page-based pagination.
+- **Input validation:** DTOs validate book and genre requests; the global validation pipe rejects unexpected fields.
+- **Authentication:** Registration and login issue JWTs; passwords are hashed with bcrypt before storage.
+- **Authorization:** JWT and role guards protect librarian-only routes. Public registration creates patron accounts.
+- **Optional features:** An authenticated `GET /users/profile` endpoint and a login limit of five requests per minute per client.
+- **Postman collection:** Requests are included in [docs/postman_collection.json](docs/postman_collection.json).
 
 ## Tech stack
 
@@ -36,56 +36,53 @@ This Week 1 assignment focuses on database modeling and connecting Prisma to Nes
 | --- | --- |
 | Backend | NestJS 11, TypeScript, Node.js, Express adapter |
 | Database | PostgreSQL, Prisma 7, `@prisma/adapter-pg`, `pg` |
-| Configuration and seeding | dotenv, Prisma configuration, tsx |
-| Development tooling | Nest CLI, Jest, Supertest, ESLint, Prettier |
+| Authentication and validation | Passport JWT, NestJS JWT, bcrypt, class-validator, class-transformer |
+| Development tooling | Nest CLI, Jest, Supertest, ESLint, Prettier, Postman |
 
 Dependency ranges and scripts are defined in [api/package.json](api/package.json); [api/package-lock.json](api/package-lock.json) records the locked dependency tree.
 
 ## Architecture
 
 ```text
-NestJS application (api/)
-  ├── AppController → AppService → GET / greeting
-  └── PrismaModule → PrismaService
-        └── Prisma client + PostgreSQL driver adapter
-              └── PostgreSQL
-                    ├── User
-                    └── Genre (one) → Book (many)
+Client request
+  └── NestJS controller → service → PrismaService → PostgreSQL
+        ├── Books and genres: catalog queries and changes
+        ├── Auth: registration, login, JWT and role guards
+        └── Users: authenticated profile
 
 Prisma seed script → upsert genres and books
 ```
 
-The application reads `DATABASE_URL` from its environment. The Prisma client is generated into `api/generated/prisma/`, with CommonJS output configured in the schema.
+DTOs validate incoming values, while JWT and role guards check access before protected handlers run. The Prisma client is generated into `api/generated/prisma/`.
 
 ## Database models
 
-The source of truth is [schema.prisma](api/prisma/schema.prisma).
+The schema is defined in [schema.prisma](api/prisma/schema.prisma).
 
 | Model | Main fields and constraints |
 | --- | --- |
-| `User` | Auto-incrementing integer `id`, unique `email`, required `password`, and `role` defaulting to `PATRON` |
-| `Genre` | Auto-incrementing integer `id`, unique `name`, unique `slug`, and a collection of related books |
-| `Book` | Auto-incrementing integer `id`, title, author, unique ISBN, description, optional cover image, copy counts, required genre, and creation timestamp |
+| `User` | Integer `id`, unique `email`, hashed `password`, and `role` defaulting to `PATRON` |
+| `Genre` | Integer `id`, unique `name`, unique `slug`, and related books |
+| `Book` | Integer `id`, title, author, unique ISBN, description, optional cover image, copy counts, required genre, and creation timestamp |
 
-`totalCopies` and `availableCopies` each default to 1. `createdAt` defaults to the insertion time. Users are not linked to books or loans in this schema.
+`totalCopies` and `availableCopies` default to 1 in the schema. The book create service sets `availableCopies` to the submitted `totalCopies`. Users are not linked to books or loans in this schema.
 
 ## Schema decisions
 
 ### Why does Book reference Genre through a foreign key?
 
-Many books share a genre. Storing a required `genreId` reference keeps each genre's name in one row, so renaming a genre does not require updating every book. The relation also ensures that a book references an existing genre.
+Many books share a genre. Storing a required `genreId` reference keeps each genre's name in one row and ensures that each book references an existing genre.
 
 ### Why does User use an enum for its role?
 
-The `Role` enum limits values to `PATRON` and `LIBRARIAN`. The generated TypeScript types and PostgreSQL enum constrain the allowed values, helping prevent typos and invented roles. This models a user's role; it does **not** implement authentication or enforce permissions on HTTP routes.
+The `Role` enum limits values to `PATRON` and `LIBRARIAN`. The generated TypeScript types and PostgreSQL enum constrain the allowed values, while the Week 2 guards enforce role-based access to protected routes.
 
 ## Getting started
 
 ### Prerequisites
 
 - Node.js 24 and npm for the documented development workflow.
-- A running PostgreSQL database, local or hosted.
-- Database credentials with permission to apply the committed migration.
+- A running PostgreSQL database, local or hosted, and credentials for the intended development database.
 - Bash/Git Bash for the commands below.
 
 ### 1. Install dependencies
@@ -99,38 +96,30 @@ npm ci
 
 ### 2. Configure the database connection
 
-For a fresh setup only:
+For a fresh setup only, copy the example without overwriting an existing `.env`:
 
 ```bash
 cp .env.example .env
 ```
 
-Do not overwrite an existing `.env`. Edit `DATABASE_URL` to match your PostgreSQL connection. For example, a local development connection has this shape:
-
-```dotenv
-DATABASE_URL="postgresql://YOUR_USER:YOUR_PASSWORD@localhost:5432/library_db?schema=public"
-```
-
-Use your actual credentials only in the private environment file, and URL-encode special characters. For a hosted database, use the provider's connection string and required SSL settings. Never commit `.env` or credentials.
-
-For local PostgreSQL, create the database first if it does not exist. With `psql` on your `PATH`:
+Set `DATABASE_URL` in the private `api/.env` file to your PostgreSQL connection string. Use your provider's required SSL settings and URL-encode special characters in credentials where needed. Add `JWT_SECRET` with a private random value of at least 32 characters. For example, generate a value with:
 
 ```bash
-psql -h localhost -U postgres -d postgres -c "CREATE DATABASE library_db;"
+node -e 'console.log(require("crypto").randomBytes(32).toString("hex"))'
 ```
 
-Substitute your PostgreSQL role and database name as needed.
+Place the generated value after `JWT_SECRET=` in `.env`. Keep the value private and do not commit `.env`. The JWT signing and verification configuration reads this same secret.
 
 ### 3. Generate the client and apply the migration
 
-From `api`:
+From `api`, after checking that `DATABASE_URL` points to the intended development database:
 
 ```bash
 npx prisma generate --config prisma7.config.ts
 npx prisma migrate deploy --config prisma7.config.ts
 ```
 
-The explicit config path selects [prisma7.config.ts](api/prisma7.config.ts), which defines the schema path, migration directory, seed command, and database URL. Check the database target before applying migrations.
+The explicit configuration path selects [prisma7.config.ts](api/prisma7.config.ts).
 
 ### 4. Add sample data
 
@@ -146,39 +135,44 @@ See [Sample data](#sample-data) for what this inserts.
 npm run start:dev
 ```
 
-The default address is `http://localhost:3000`; the server uses `PORT` when supplied. The application connects to PostgreSQL during module initialization, so valid database configuration is required to start it.
-
-For backend-specific commands, see the [API README](api/README.md).
+The default address is `http://localhost:3000`; the server uses `PORT` when supplied. PostgreSQL must be reachable during application startup. For backend-specific notes, see the [API README](api/README.md).
 
 ## Sample data
 
-The [seed script](api/prisma/seed.ts) defines:
+The [seed script](api/prisma/seed.ts) upserts four genres and 15 sample books. New books receive three total and available copies. Existing matching records are left unchanged; the placeholder ISBNs are demo identifiers, not verified publication ISBNs. The seed does not create users.
 
-- **Four genres:** Fantasy, Science Fiction, Mystery, and Biography.
-- **15 books:** Including *The Hobbit*, *Dune*, *Binti*, *Nairobi Heat*, and *Unbowed*.
-- **Three total and available copies** for each newly inserted sample book.
-
-Genres are upserted by slug and books by stable, made-up placeholder ISBNs. Existing matching records are left unchanged, so rerunning the seed does not duplicate them or reset their copy counts. These ISBNs are demo identifiers, not verified publication ISBNs. The seed does not create users.
-
-To inspect records visually, run this from `api`:
+Public registration creates a `PATRON`. For local development, [create-librarian.ts](api/scripts/create-librarian.ts) can create a separate librarian account using the environment variables `LIBRARIAN_EMAIL` and `LIBRARIAN_PASSWORD`. It refuses to change an existing account. Use a development database and private credentials:
 
 ```bash
-npx prisma studio --config prisma7.config.ts
+export LIBRARIAN_EMAIL='your-librarian@example.test'
+read -r -s -p 'Practice password: ' LIBRARIAN_PASSWORD
+echo
+export LIBRARIAN_PASSWORD
+npx tsx scripts/create-librarian.ts
+unset LIBRARIAN_EMAIL LIBRARIAN_PASSWORD
 ```
 
-## Available endpoint
+The password must be at least 12 characters and no more than 72 UTF-8 bytes. Never commit real credentials.
 
-| Method | Route | Response |
+## Available endpoints
+
+| Method | Route | Access and purpose |
 | --- | --- | --- |
-| GET | `/` | Plain text: `Hello World!` |
+| GET | `/` | Public starter greeting |
+| GET | `/books`, `/books/:id` | Public catalog list and individual book |
+| POST, PATCH, DELETE | `/books`, `/books/:id` | Librarian-only book changes |
+| GET | `/genres`, `/genres/:id` | Public genre list and individual genre |
+| POST, PATCH, DELETE | `/genres`, `/genres/:id` | Librarian-only genre changes |
+| POST | `/auth/register`, `/auth/login` | Register a patron or log in and receive a token |
+| GET | `/auth/me`, `/users/profile` | Current authenticated user's safe identity |
 
-Once the application is running:
+The catalog list accepts `genreId`, `search`, `page`, and `limit`, for example:
 
 ```bash
-curl http://localhost:3000/
+curl 'http://localhost:3000/books?search=hobbit&page=1&limit=2'
 ```
 
-This is a starter greeting endpoint, not a catalog or circulation API. There are no book, genre, user-management, or loan routes in the Week 1 submission.
+Send the token as `Authorization: Bearer <token>` for protected routes. The login route allows five requests per 60 seconds per tracked client using the default in-memory limiter. Import the [Postman collection](docs/postman_collection.json) for examples; set credentials and tokens privately rather than saving them into the shared collection.
 
 ## Build and tests
 
@@ -186,36 +180,35 @@ Run these commands from `api`:
 
 | Command | Purpose |
 | --- | --- |
-| `npm run build` | Compile the NestJS application into `dist/` |
+| `npm run build` | Compile the NestJS application |
 | `npm test -- --runInBand` | Run unit tests sequentially |
-| `npm run test:cov -- --runInBand` | Run unit tests with coverage collection |
-| `npm run test:e2e -- --runInBand` | Run the root endpoint test; requires a configured, reachable database |
+| `npm run test:e2e -- --runInBand` | Run the root endpoint test; requires a reachable database |
 | `npx prisma validate --config prisma7.config.ts` | Validate the schema without applying migrations |
-| `npx eslint "{src,apps,libs,test}/**/*.ts"` | Check lint rules without automatically modifying source |
 
-The package's `npm run lint` script includes `--fix`, and `npm run format` rewrites source formatting. Use those deliberately rather than as read-only checks. The existing unit and end-to-end tests target the greeting endpoint, not complete database or library workflows.
+The existing automated unit test covers the starter greeting, not all Week 2 endpoints. Manual checks have covered registration and login, profile access, patron restrictions, login throttling, book CRUD, catalog search and filtering, and pagination. Additional endpoint validation can be performed with the Postman collection.
 
 ## Project structure
 
 ```text
 .
 ├── README.md
+├── docs/
+│   └── postman_collection.json
 └── api/
     ├── README.md
     ├── .env.example
     ├── prisma7.config.ts
-    ├── prisma/
-    │   ├── schema.prisma
-    │   ├── migrations/          # Initial PostgreSQL schema migration
-    │   └── seed.ts              # Genre and book upserts
+    ├── prisma/                 # Schema, migration and seed
+    ├── scripts/                # Local librarian creation
     ├── src/
-    │   ├── app.module.ts        # Registers PrismaModule
-    │   ├── app.controller.ts    # GET / route
-    │   ├── app.service.ts       # Greeting response
-    │   ├── main.ts              # Application startup
-    │   └── prisma/
-    │       ├── prisma.module.ts
-    │       └── prisma.service.ts
+    │   ├── app.module.ts       # Feature modules
+    │   ├── main.ts             # Startup, validation and CORS
+    │   ├── auth/               # Login, registration, JWT and role guards
+    │   ├── books/              # Book routes, queries and DTOs
+    │   ├── genres/             # Genre routes, service and DTOs
+    │   ├── users/              # Authenticated profile
+    │   ├── common/             # Shared error handling
+    │   └── prisma/             # Prisma module and service
     └── test/                   # Root endpoint end-to-end test
 ```
 
@@ -223,16 +216,18 @@ The package's `npm run lint` script includes `--fix`, and `npm run format` rewri
 
 | Symptom | What to check |
 | --- | --- |
-| `DATABASE_URL is required` | Create the private `api/.env`, configure the URL, and run commands from `api`. |
+| `DATABASE_URL is required` | Configure the private `api/.env` and run commands from `api`. |
+| JWT secret error at startup | Set a private `JWT_SECRET` of at least 32 characters in `api/.env`. |
 | Prisma client import cannot be resolved | Run `npx prisma generate --config prisma7.config.ts` from `api`. |
-| Database connection or startup fails | Check that PostgreSQL is reachable, credentials are correct, the database exists, and hosted SSL settings match the provider. |
-| Tables are missing | Apply the committed migration against the intended database. |
-| Seed command cannot find its configuration | Run from `api` and include `--config prisma7.config.ts`. |
-| Port 3000 is occupied | Stop the conflicting process or use another port, for example `PORT=3001 npm run start:dev` in Git Bash. |
+| Database connection or startup fails | Check the database, credentials, network access, and provider SSL settings. |
+| `401 Unauthorized` | Log in again and send a valid, unexpired bearer token. Tokens expire after one hour. |
+| `403 Forbidden` | Check that the signed-in account has the librarian role for the requested catalog change. |
+| `429 Too Many Requests` on login | Wait for the login rate-limit period to pass before retrying. |
+| Port 3000 is occupied | Stop the other process or run `PORT=3001 npm run start:dev` in Git Bash. |
 
 ## Current scope
 
-This submission supplies the database foundation, not a complete library product. It does not include a frontend, authentication, password hashing, role-based route guards, catalog CRUD endpoints, or borrowing/return workflows. The `password` field and `Role` enum are schema definitions, not a completed account-security implementation. Do not treat the project as a production-ready service or use real user passwords in sample data.
+This submission covers the Week 2 backend and optional profile and login-rate-limit features. It does not include a frontend or borrowing and return workflows. Book inventory counts cannot be modified through the generic book update DTO; a separate stock-adjustment workflow is not yet implemented. The in-memory rate limit is intended for this learning setup and does not coordinate across multiple server instances.
 
 ## Author and license
 
