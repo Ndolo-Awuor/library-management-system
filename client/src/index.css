@@ -1,0 +1,92 @@
+:root {
+  font-family: system-ui, sans-serif;
+  color: #233127;
+  background: #f5f7f2;
+  line-height: 1.5;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+}
+
+.container {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 2rem 1rem;
+}
+
+label {
+  display: grid;
+  gap: 0.4rem;
+  max-width: 28rem;
+  margin-bottom: 1rem;
+  font-weight: 600;
+}
+
+input,
+select {
+  width: 100%;
+  min-height: 48px;
+  padding: 0.65rem;
+  font: inherit;
+  color: #233127;
+  background: white;
+  border: 1px solid #768579;
+  border-radius: 0.4rem;
+}
+
+input:focus-visible,
+select:focus-visible,
+a:focus-visible {
+  outline: 3px solid #b36616;
+  outline-offset: 3px;
+}
+
+.book-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 220px), 1fr));
+  gap: 1rem;
+}
+
+.book-card {
+  padding: 1.2rem;
+  background: white;
+  border: 1px solid #d9e1d8;
+  border-radius: 0.7rem;
+  overflow-wrap: anywhere;
+}
+
+.book-card h2 {
+  margin-top: 0;
+  font-size: 1.15rem;
+}
+
+a {
+  color: #165a43;
+}
+
+.skeleton {
+  min-height: 170px;
+  background: #e2e9e1;
+}
+
+.skeleton-line {
+  display: block;
+  height: 1rem;
+  margin-bottom: 1rem;
+  background: #c6d3c6;
+  border-radius: 0.3rem;
+}
+
+.skeleton-line.short {
+  width: 60%;
+}
+
+img {
+  max-width: 100%;
+  height: auto;
+}
