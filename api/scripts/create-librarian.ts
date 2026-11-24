@@ -5,19 +5,9 @@ import { PrismaClient } from '../generated/prisma/client';
 import * as bcrypt from 'bcrypt';
 
 const connectionString = process.env.DATABASE_URL;
-const email = process.env.LIBRARIAN_EMAIL?.trim().toLowerCase();
-const password = process.env.LIBRARIAN_PASSWORD;
 
 if (!connectionString) {
   throw new Error('DATABASE_URL is missing from .env');
-}
-
-if (!email || !password) {
-  throw new Error('Librarian email and password are required');
-}
-
-if (password.length < 12 || Buffer.byteLength(password) > 72) {
-  throw new Error('Password must be at least 12 characters and at most 72 bytes');
 }
 
 const prisma = new PrismaClient({
@@ -25,6 +15,18 @@ const prisma = new PrismaClient({
 });
 
 async function main() {
+  const email = process.env.LIBRARIAN_EMAIL?.trim().toLowerCase();
+  const password = process.env.LIBRARIAN_PASSWORD;
+
+  if (!email || !password) {
+    throw new Error('Librarian email and password are required');
+  }
+
+  if (password.length < 12 || Buffer.byteLength(password) > 72) {
+    throw new Error(
+      'Password must be at least 12 characters and at most 72 bytes',
+    );
+  }
   const existingUser = await prisma.user.findUnique({
     where: { email },
   });

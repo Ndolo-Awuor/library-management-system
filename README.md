@@ -1,12 +1,13 @@
-# Library Management System — Week 2
+# Library Management System — Week 3
 
-A NestJS and PostgreSQL backend for a library application, with a Prisma database schema, catalog endpoints, and token-based authentication.
+A library catalog with a React frontend and a NestJS and PostgreSQL backend, built as a full-stack course project.
 
-This Week 2 assignment builds on the Week 1 database foundation. It adds book and genre management, validation, search and pagination, registration and login, role-based access, and the optional profile and login rate-limit features.
+The Week 3 assignment builds on the Week 1 database foundation and Week 2 API. It adds a patron-facing catalog, book details, search, genre filtering, and the optional sorting and skeleton-loading features.
 
 ## Contents
 
-- [Week 2 deliverables](#week-2-deliverables)
+- [Week 3 deliverables](#week-3-deliverables)
+- [Week 2 backend features](#week-2-backend-features)
 - [Tech stack](#tech-stack)
 - [Architecture](#architecture)
 - [Database models](#database-models)
@@ -20,7 +21,15 @@ This Week 2 assignment builds on the Week 1 database foundation. It adds book an
 - [Current scope](#current-scope)
 - [Author and license](#author-and-license)
 
-## Week 2 deliverables
+## Week 3 deliverables
+
+- **Responsive catalog:** A grid of book cards fetched from the library API.
+- **Book details:** A detail page at `/books/:id` with the book's description, genre, ISBN, and availability.
+- **Search and filtering:** Search by title or author with a 400 ms debounce, and filter by genre.
+- **Request states:** Loading, error, and empty messages for the catalog; the detail page also handles missing books.
+- **Optional features:** Sort matching books by title or author, and show skeleton cards while the catalog loads.
+
+## Week 2 backend features
 
 - **Catalog CRUD:** Create, list, retrieve, update, and delete books and genres. Catalog changes require a librarian account.
 - **Catalog queries:** Filter books by genre, search by title or author, and use page-based pagination.
@@ -34,18 +43,19 @@ This Week 2 assignment builds on the Week 1 database foundation. It adds book an
 
 | Layer | Technologies |
 | --- | --- |
+| Frontend | React, Vite, JavaScript, React Router, Axios, CSS |
 | Backend | NestJS 11, TypeScript, Node.js, Express adapter |
 | Database | PostgreSQL, Prisma 7, `@prisma/adapter-pg`, `pg` |
 | Authentication and validation | Passport JWT, NestJS JWT, bcrypt, class-validator, class-transformer |
 | Development tooling | Nest CLI, Jest, Supertest, ESLint, Prettier, Postman |
 
-Dependency ranges and scripts are defined in [api/package.json](api/package.json); [api/package-lock.json](api/package-lock.json) records the locked dependency tree.
+Dependency ranges and scripts are defined in [api/package.json](api/package.json) and [client/package.json](client/package.json); each folder has its own package lock file.
 
 ## Architecture
 
 ```text
-Client request
-  └── NestJS controller → service → PrismaService → PostgreSQL
+React frontend (client/)
+  └── Axios HTTP request → NestJS controller → service → PrismaService → PostgreSQL
         ├── Books and genres: catalog queries and changes
         ├── Auth: registration, login, JWT and role guards
         └── Users: authenticated profile
@@ -137,6 +147,23 @@ npm run start:dev
 
 The default address is `http://localhost:3000`; the server uses `PORT` when supplied. PostgreSQL must be reachable during application startup. For backend-specific notes, see the [API README](api/README.md).
 
+### 6. Start the React frontend
+
+Keep the API terminal running. In a second Git Bash terminal, from the repository root:
+
+```bash
+cd client
+npm ci
+```
+
+The assignment's `client/.env` defines `VITE_API_URL=http://localhost:3000`. Adjust it if your API uses another address, and restart Vite after changing it. Vite exposes `VITE_` variables to the browser, so do not put passwords, JWT secrets, or database credentials in this file. The backend's `api/.env` must remain private.
+
+```bash
+npm run dev
+```
+
+Open the local address printed by Vite, commonly `http://localhost:5173`. See the [client README](client/README.md) for frontend details.
+
 ## Sample data
 
 The [seed script](api/prisma/seed.ts) upserts four genres and 15 sample books. New books receive three total and available copies. Existing matching records are left unchanged; the placeholder ISBNs are demo identifiers, not verified publication ISBNs. The seed does not create users.
@@ -176,7 +203,17 @@ Send the token as `Authorization: Bearer <token>` for protected routes. The logi
 
 ## Build and tests
 
-Run these commands from `api`:
+Frontend commands from `client`:
+
+| Command | Purpose |
+| --- | --- |
+| `npm run dev` | Start the Vite development server |
+| `npm run build` | Build the frontend for production |
+| `npm run lint` | Run the client linter |
+
+The frontend build completed successfully. Manual browser checks covered catalog display, book details and missing books, title and author search, the empty state, genre filtering, sorting, a narrow screen, and the error messages shown when the backend is unavailable. Loading skeletons are implemented; their appearance depends on request speed. There are no frontend automated tests in the current client configuration.
+
+Backend commands from `api`:
 
 | Command | Purpose |
 | --- | --- |
@@ -194,6 +231,17 @@ The existing automated unit test covers the starter greeting, not all Week 2 end
 ├── README.md
 ├── docs/
 │   └── postman_collection.json
+├── client/
+│   ├── .env                   # Public VITE_API_URL; never put secrets here
+│   ├── README.md
+│   ├── package.json
+│   └── src/
+│       ├── main.jsx           # BrowserRouter and React entry point
+│       ├── App.jsx            # Catalog and detail routes
+│       ├── api.js             # Axios base URL
+│       ├── components/        # Search bar, book grid and book card
+│       ├── pages/             # Homepage and book details
+│       └── index.css          # Responsive styles and skeletons
 └── api/
     ├── README.md
     ├── .env.example
@@ -224,10 +272,11 @@ The existing automated unit test covers the starter greeting, not all Week 2 end
 | `403 Forbidden` | Check that the signed-in account has the librarian role for the requested catalog change. |
 | `429 Too Many Requests` on login | Wait for the login rate-limit period to pass before retrying. |
 | Port 3000 is occupied | Stop the other process or run `PORT=3001 npm run start:dev` in Git Bash. |
+| Frontend cannot load books or genres | Check that the API is running and `client/.env` points to its address; restart Vite after changing the file. |
 
 ## Current scope
 
-This submission covers the Week 2 backend and optional profile and login-rate-limit features. It does not include a frontend or borrowing and return workflows. Book inventory counts cannot be modified through the generic book update DTO; a separate stock-adjustment workflow is not yet implemented. The in-memory rate limit is intended for this learning setup and does not coordinate across multiple server instances.
+This submission covers the Week 3 catalog frontend and the Week 2 backend, including their optional features. Borrowing and return workflows are not yet implemented. Book inventory counts cannot be modified through the generic book update DTO. The client loads all matching result pages before sorting them in the browser, which suits the course catalog but is less suitable for a large catalog or data changing during the requests. The backend's in-memory rate limit is intended for this learning setup and does not coordinate across multiple server instances.
 
 ## Author and license
 
